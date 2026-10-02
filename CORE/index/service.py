@@ -11,6 +11,9 @@ from .database import IndexDatabase
 from .exclusions import should_ignore_directory, should_ignore_file
 from .metadata import calculate_sha256, detect_language
 from .models import FileRecord, ProjectRecord, ScanResult
+from .relations import RelationIndexer
+from .search import SearchResult, SearchService
+from .symbols import PythonSymbolIndexer
 
 
 def _now() -> str:
@@ -39,6 +42,7 @@ class IndexService:
 
     def __init__(self, database: IndexDatabase) -> None:
         self.database = database
+        self.search_service = SearchService(database.connection)
 
     def register_project(self, name: str, root_path: Path | str) -> ProjectRecord:
         """注册项目；路径必须已存在且为目录，重复注册返回原记录。"""
@@ -102,14 +106,16 @@ class IndexService:
             "hash_recomputed_count": 0,
             "warning_count": 0,
         }
+        text_refresh_ids: set[str] = set()
         try:
             snapshot, directories, warnings = self._discover(project.root_path)
             counts["scanned_count"] = len(snapshot)
             counts["warning_count"] = len(warnings)
             with self.database.transaction():
                 self._apply_snapshot(
-                    project, run_id, snapshot, directories, warnings, counts
+                    project, run_id, snapshot, directories, warnings, counts, text_refresh_ids
                 )
+                self._refresh_text_index(project, snapshot, text_refresh_ids)
                 connection.execute(
                     "UPDATE index_runs SET completed_at = ?, status = 'completed', "
                     "scanned_count = ?, added_count = ?, changed_count = ?, moved_count = ?, "
@@ -193,6 +199,100 @@ class IndexService:
         ).fetchall()
         return [dict(row) for row in rows]
 
+    def search(
+        self, project_id: str, query: str, mode: str = "text", limit: int = 10,
+        language: str | None = None,
+    ) -> list[SearchResult]:
+        """搜索文件身份和元数据，不直接返回文件全文。"""
+
+        self.get_project(project_id)
+        return self.search_service.search(project_id, query, mode, limit, language)
+
+    def index_code(self, project_id: str) -> dict[str, int]:
+        """为已索引项目建立 Python Symbol 与确定性 Relation。"""
+
+        project = self.get_project(project_id)
+        with self.database.transaction():
+            symbols = PythonSymbolIndexer(self.database.connection).index_project(
+                project_id, project.root_path
+            )
+            relations = RelationIndexer(self.database.connection).index_project(
+                project_id, project.root_path
+            )
+        return {**symbols, **relations}
+
+    def list_symbols(self, project_id: str, query: str | None = None) -> list[dict[str, object]]:
+        self.get_project(project_id)
+        sql = "SELECT * FROM symbols WHERE project_id = ?"
+        params: list[object] = [project_id]
+        if query:
+            sql += " AND (name LIKE ? OR qualified_name LIKE ?)"
+            params.extend([f"%{query}%", f"%{query}%"])
+        sql += " ORDER BY qualified_name, start_line"
+        return [dict(row) for row in self.database.connection.execute(sql, params).fetchall()]
+
+    def get_symbol(self, symbol_id: str) -> dict[str, object]:
+        row = self.database.connection.execute(
+            "SELECT * FROM symbols WHERE symbol_id = ?", (symbol_id,)
+        ).fetchone()
+        if row is None:
+            raise KeyError(f"未知 Symbol ID: {symbol_id}")
+        return dict(row)
+
+    def relate(self, project_id: str, object_id: str, relation_types: list[str] | None = None) -> list[dict[str, object]]:
+        self.get_project(project_id)
+        params: list[object] = [project_id, object_id, object_id]
+        query = (
+            "SELECT source_type, source_id, relation_type, target_type, target_id, confidence "
+            "FROM relations WHERE project_id = ? AND (source_id = ? OR target_id = ?)"
+        )
+        if relation_types:
+            placeholders = ",".join("?" for _ in relation_types)
+            query += f" AND relation_type IN ({placeholders})"
+            params.extend(relation_types)
+        return [dict(row) for row in self.database.connection.execute(query, params).fetchall()]
+
+    def history(self, project_id: str, file_id: str) -> list[dict[str, object]]:
+        self.get_project(project_id)
+        self.get_file(file_id)
+        rows = self.database.connection.execute(
+            "SELECT relative_path, first_seen_at, last_seen_at, is_current "
+            "FROM file_paths WHERE file_id = ? ORDER BY first_seen_at", (file_id,)
+        ).fetchall()
+        return [dict(row) for row in rows]
+
+    def status(self, project_id: str) -> dict[str, object]:
+        project = self.get_project(project_id)
+        latest = self.database.connection.execute(
+            "SELECT * FROM index_runs WHERE project_id = ? ORDER BY started_at DESC LIMIT 1",
+            (project_id,),
+        ).fetchone()
+        return {
+            "project_id": project_id,
+            "root_exists": project.root_path.is_dir(),
+            "index_status": latest["status"] if latest else "never_scanned",
+            "last_run_id": latest["run_id"] if latest else None,
+            "active_files": self.database.connection.execute(
+                "SELECT COUNT(*) FROM files WHERE project_id = ? AND status = 'active'",
+                (project_id,),
+            ).fetchone()[0],
+            "deleted_files": self.database.connection.execute(
+                "SELECT COUNT(*) FROM files WHERE project_id = ? AND status = 'deleted'",
+                (project_id,),
+            ).fetchone()[0],
+        }
+
+    def read_file_content(self, project_id: str, relative_path: str) -> str:
+        """由受控 Index 层读取项目内相对路径。"""
+
+        project = self.get_project(project_id)
+        relative = Path(relative_path)
+        if relative.is_absolute() or ".." in relative.parts:
+            raise ValueError("非法项目相对路径")
+        path = (project.root_path / relative).resolve()
+        path.relative_to(project.root_path)
+        return path.read_text(encoding="utf-8", errors="replace")
+
     def _discover(
         self, root: Path
     ) -> tuple[list[dict[str, object]], list[str], list[tuple[str, str, str]]]:
@@ -259,6 +359,7 @@ class IndexService:
         directories: list[str],
         warnings: list[tuple[str, str, str]],
         counts: dict[str, int],
+        text_refresh_ids: set[str],
     ) -> None:
         connection = self.database.connection
         project_id = project.project_id
@@ -349,6 +450,7 @@ class IndexService:
                     counts["changed_count"] += 1
                 if not file_changed:
                     continue
+                text_refresh_ids.add(file_id)
                 connection.execute(
                     "UPDATE files SET file_name = ?, parent_path = ?, file_type = ?, language = ?, "
                     "size = ?, content_hash = ?, modified_time_ns = ?, change_time_ns = ?, last_seen_at = ?, "
@@ -379,6 +481,7 @@ class IndexService:
                     "UPDATE file_paths SET is_current = 0 WHERE file_id = ?", (file_id,)
                 )
                 self._upsert_path(file_id, path, now)
+                text_refresh_ids.add(file_id)
                 continue
 
             # 同一路径文件被删除后重新出现时恢复原 ID；ID 永不复用。
@@ -400,6 +503,7 @@ class IndexService:
                 )
                 self._upsert_path(file_id, path, now)
                 counts["changed_count"] += 1
+                text_refresh_ids.add(file_id)
             else:
                 file_id = _allocate_id(connection, "file", "F")
                 connection.execute(
@@ -413,6 +517,7 @@ class IndexService:
                     ),
                 )
                 counts["added_count"] += 1
+                text_refresh_ids.add(file_id)
             self._upsert_path(file_id, path, now)
 
         deleted_or_moved = missing_paths
@@ -429,6 +534,44 @@ class IndexService:
                 "INSERT INTO scan_warnings(run_id, warning_type, relative_path, detail) "
                 "VALUES (?, ?, ?, ?)",
                 (run_id, warning_type, relative_path, detail),
+            )
+
+        for file_id in (
+            row["file_id"] for row in connection.execute(
+                "SELECT file_id FROM files WHERE project_id = ? AND status = 'deleted'",
+                (project_id,),
+            ).fetchall()
+        ):
+            connection.execute("DELETE FROM file_text_fts WHERE file_id = ?", (file_id,))
+
+    def _refresh_text_index(
+        self, project: ProjectRecord, snapshot: list[dict[str, object]], refresh_ids: set[str]
+    ) -> None:
+        """只为新增或内容/路径变更的文件更新 FTS，避免重复扫描重读全部文件。"""
+
+        by_id = {
+            row["file_id"]: row for row in self.database.connection.execute(
+                "SELECT file_id, current_path FROM files WHERE project_id = ? AND status = 'active'",
+                (project.project_id,),
+            ).fetchall()
+        }
+        snapshot_by_path = {str(item["path"]): item for item in snapshot}
+        for file_id in refresh_ids:
+            row = by_id.get(file_id)
+            self.database.connection.execute("DELETE FROM file_text_fts WHERE file_id = ?", (file_id,))
+            if row is None:
+                continue
+            item = snapshot_by_path.get(row["current_path"])
+            if item is None:
+                continue
+            path = project.root_path / Path(row["current_path"])
+            try:
+                content = path.read_text(encoding="utf-8", errors="replace")
+            except OSError:
+                continue
+            self.database.connection.execute(
+                "INSERT INTO file_text_fts(project_id, file_id, relative_path, content) VALUES (?, ?, ?, ?)",
+                (project.project_id, file_id, row["current_path"], content),
             )
 
     def _replace_directories(self, project_id: str, paths: list[str]) -> None:

@@ -99,9 +99,105 @@ CREATE TABLE IF NOT EXISTS scan_warnings (
     relative_path TEXT,
     detail TEXT NOT NULL
 );
+
+CREATE VIRTUAL TABLE IF NOT EXISTS file_text_fts USING fts5(
+    project_id UNINDEXED,
+    file_id UNINDEXED,
+    relative_path,
+    content,
+    tokenize = 'unicode61'
+);
+
+CREATE TABLE IF NOT EXISTS symbols (
+    symbol_id TEXT PRIMARY KEY,
+    file_id TEXT NOT NULL REFERENCES files(file_id),
+    project_id TEXT NOT NULL REFERENCES projects(project_id),
+    parent_symbol_id TEXT REFERENCES symbols(symbol_id),
+    name TEXT NOT NULL,
+    qualified_name TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    language TEXT NOT NULL,
+    start_line INTEGER NOT NULL,
+    end_line INTEGER NOT NULL,
+    signature TEXT,
+    docstring TEXT,
+    UNIQUE(file_id, qualified_name, kind, start_line)
+);
+
+CREATE INDEX IF NOT EXISTS idx_symbols_project_name
+    ON symbols(project_id, qualified_name);
+CREATE INDEX IF NOT EXISTS idx_symbols_file
+    ON symbols(file_id);
+
+CREATE TABLE IF NOT EXISTS relations (
+    relation_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id TEXT NOT NULL REFERENCES projects(project_id),
+    source_type TEXT NOT NULL,
+    source_id TEXT NOT NULL,
+    relation_type TEXT NOT NULL,
+    target_type TEXT NOT NULL,
+    target_id TEXT NOT NULL,
+    confidence TEXT NOT NULL DEFAULT 'deterministic',
+    UNIQUE(source_type, source_id, relation_type, target_type, target_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_relations_source
+    ON relations(project_id, source_type, source_id, relation_type);
+CREATE INDEX IF NOT EXISTS idx_relations_target
+    ON relations(project_id, target_type, target_id, relation_type);
+
+CREATE TABLE IF NOT EXISTS operation_log (
+    operation_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    timestamp TEXT NOT NULL,
+    agent TEXT NOT NULL,
+    project_id TEXT,
+    action TEXT NOT NULL,
+    target TEXT,
+    reason TEXT,
+    result TEXT NOT NULL,
+    detail TEXT
+);
+
+CREATE TABLE IF NOT EXISTS token_audit (
+    audit_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    timestamp TEXT NOT NULL,
+    agent TEXT NOT NULL,
+    project_id TEXT,
+    task TEXT,
+    purpose TEXT NOT NULL,
+    input_tokens INTEGER NOT NULL DEFAULT 0,
+    output_tokens INTEGER NOT NULL DEFAULT 0,
+    cache_tokens INTEGER NOT NULL DEFAULT 0,
+    total_tokens INTEGER NOT NULL DEFAULT 0,
+    context_sources TEXT NOT NULL DEFAULT '[]',
+    result TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS decision_log (
+    decision_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    timestamp TEXT NOT NULL,
+    project_id TEXT,
+    decision TEXT NOT NULL,
+    reason TEXT NOT NULL,
+    alternatives TEXT NOT NULL,
+    uncertainty TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS change_log (
+    change_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    timestamp TEXT NOT NULL,
+    project_id TEXT,
+    task TEXT,
+    file_path TEXT NOT NULL,
+    before_hash TEXT,
+    after_hash TEXT,
+    test_result TEXT NOT NULL,
+    decision_id INTEGER,
+    FOREIGN KEY(decision_id) REFERENCES decision_log(decision_id)
+);
 """
 
-SCHEMA_VERSION = "1"
+SCHEMA_VERSION = "2"
 
 
 class IndexDatabase:

@@ -1,9 +1,9 @@
-# AI Workspace Phase 1 配置。
-# Index 数据库存放在 Workspace 中央数据目录；Agent 仍须等待 Gateway 才能访问 Index。
+# AI Workspace MVP 配置。
+# Index 数据库存放在 Workspace 中央数据目录；Agent 必须通过 Gateway 获取信息。
 
 [workspace]
 name = "AI Workspace"
-phase = 1
+phase = 10
 
 [paths]
 projects = "PROJECTS"

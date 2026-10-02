@@ -1,2 +1,6 @@
-"""Context Gateway 模块边界，Phase 5 实现 Agent 的唯一访问入口。"""
+"""Context Gateway：Agent 与本地信息基础设施之间的唯一入口。"""
+
+from .service import ContextGateway, GatewayError
+
+__all__ = ["ContextGateway", "GatewayError"]
 

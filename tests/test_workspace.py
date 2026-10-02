@@ -14,7 +14,7 @@ class WorkspaceTests(unittest.TestCase):
         config = load_config(ROOT)
 
         self.assertEqual(config.name, "AI Workspace")
-        self.assertEqual(config.phase, 1)
+        self.assertEqual(config.phase, 10)
         self.assertFalse(config.allow_direct_filesystem_access)
         self.assertTrue(config.gateway_required)
         self.assertEqual(config.index_database, ROOT / "DASHBOARD" / "data" / "index.sqlite3")

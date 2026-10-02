@@ -54,3 +54,21 @@ class ScanResult:
     warning_count: int
     error_message: str | None = None
 
+
+@dataclass(frozen=True)
+class SymbolRecord:
+    """代码结构索引中的最小可读单元。"""
+
+    symbol_id: str
+    file_id: str
+    project_id: str
+    parent_symbol_id: str | None
+    name: str
+    qualified_name: str
+    kind: str
+    language: str
+    start_line: int
+    end_line: int
+    signature: str | None
+    docstring: str | None
+

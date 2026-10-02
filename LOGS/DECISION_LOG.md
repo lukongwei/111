@@ -30,3 +30,10 @@
 - **替代方案**：每个项目各自建立数据库。
 - **不确定性**：大规模多项目场景的并发写入需求尚未出现，当前使用单一 SQLite 文件和事务。
 
+## 2026-10-03 - 全链路 MVP 基线
+
+- **决定**：连续实现 Search、Python Symbol / Relation、Gateway、Context、Adapter、Dashboard、Audit 和 Maintenance 的可运行标准库基线，并保持 Agent 只能经 Gateway 访问信息。
+- **原因**：用户要求先连续推进全部步骤，最后统一验收；核心接口和测试需要形成完整链路才能验证架构边界。
+- **替代方案**：继续逐 Phase 停下来等待确认，或引入 Web/ORM/向量数据库等第三方基础设施。
+- **不确定性**：当前 Symbol、Relation、Dashboard 和维护规则是可解释 MVP，不替代多语言静态分析、完整 Git 历史和生产级前端。
+

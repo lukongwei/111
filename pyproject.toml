@@ -6,7 +6,7 @@ requires-python = ">=3.11"
 dependencies = []
 
 [tool.ai-workspace]
-phase = 1
+phase = 10
 configuration = "config/system.toml"
 
 [tool.unittest]

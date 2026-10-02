@@ -1,4 +1,4 @@
-"""AI Workspace Phase 1 启动检查入口。"""
+"""AI Workspace MVP 启动检查入口。"""
 
 from __future__ import annotations
 
@@ -12,11 +12,11 @@ def main() -> int:
 
     root = Path(__file__).resolve().parents[2]
     config = load_config(root)
-    print(f"{config.name} Phase {config.phase} ready")
+    print(f"{config.name} MVP Phase {config.phase} baseline ready")
     print(f"root={config.root}")
     print(f"index_database={config.index_database}")
     print("filesystem_index=available (local management API)")
-    print("gateway=not implemented (Phase 5)")
+    print("gateway=available (agent access boundary)")
     return 0
 
 

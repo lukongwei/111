@@ -2,7 +2,7 @@
 
 ## 当前状态
 
-Phase 1 提供本地 Index 管理 API，但不开放给 Agent。标准请求协议和 Agent Adapter 尚未实现；Agent 仍不得直接读取文件系统或 SQLite。
+当前提供结构化 Gateway 请求和模型无关 Agent Adapter。Agent 仍不得直接读取文件系统或 SQLite；所有信息访问必须由 Gateway 执行预算、权限和项目隔离。
 
 ## 未来标准操作
 

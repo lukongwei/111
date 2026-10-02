@@ -1,57 +1,60 @@
 # AI Workspace
 
-AI Workspace 是本地 AI 信息基础设施，目标是让多个 LLM / Agent 通过统一的 Context Gateway 共享受控信息。
+AI Workspace 是本地 AI 信息基础设施：计算机负责定位，LLM 负责认知；Agent 只能通过 Context Gateway 获取受控 Context。
 
-当前已完成 **Phase 1：Filesystem Index**。系统可注册项目、将文件元数据保存到 SQLite、执行确定性文件发现和增量更新，并识别唯一且内容未变的文件移动。
+当前仓库已具备可运行的全链路 MVP 基线：Filesystem Index、确定性 Search、Python Symbol/Relation、Gateway、Context Engine、Agent Adapter、中央 Dashboard JSON API、Audit 和 Maintenance。
 
-尚未实现全文搜索、AST / Symbol、Relation、Context Gateway、Context Engine、Agent Adapter 和 Dashboard Web 服务。Agent 不能直接调用 Index 或读取本地文件；这些能力须等待对应阶段实现。
+## 快速验证
 
-## 快速开始
-
-要求：Python 3.11 或更高版本。当前只使用 Python 标准库。
+要求 Python 3.11+，无第三方运行时依赖。
 
 ```powershell
 python -m unittest discover -s tests -v
 python -m CORE.common.app
-python -m CORE.index.cli --help
+python -m CORE.index.commands --help
+python -m DASHBOARD.backend --help
 ```
 
-## 注册并扫描项目
+## 本地工作流
 
-SQLite 默认位于 `DASHBOARD/data/index.sqlite3`。只扫描显式注册的项目，不跟随符号链接；默认排除 `.git`、虚拟环境、缓存、依赖和构建目录。删除记录保留为 tombstone，File ID 不复用。移动识别只在 SHA-256 对应唯一时执行。
+SQLite 默认位于 `DASHBOARD/data/index.sqlite3`。项目必须显式注册；扫描器不跟随符号链接，并默认排除 `.git`、虚拟环境、缓存、依赖和构建目录。
 
 ```powershell
-python -m CORE.index.cli register <项目名> <项目绝对路径>
-python -m CORE.index.cli projects
-python -m CORE.index.cli scan <项目ID>
+python -m CORE.index.commands register <项目名> <项目绝对路径>
+python -m CORE.index.commands scan <项目ID>
+python -m CORE.index.commands code <项目ID>
+python -m CORE.index.commands search <项目ID> "关键词" --mode text
+python -m CORE.index.commands request '{"op":"status","project_id":"P-000001"}'
+python -m CORE.index.commands context <项目ID> "修改兴趣评分算法"
+python -m CORE.index.commands health
+python -m DASHBOARD.backend --port 8765
 ```
 
-CLI 是本地管理入口，不是 Agent 协议；Gateway 尚未实现。
-
-## 目录
+Dashboard API：
 
 ```text
-AI_WORKSPACE/
-├── _SYSTEM/                 系统宪法、协议和文件规则
-├── CORE/
-│   ├── index/               Filesystem Index 与 SQLite 持久化
-│   ├── context/             Context Engine 边界
-│   ├── gateway/             Context Gateway 边界
-│   ├── protocol/            Agent 请求协议边界
-│   └── common/              配置、启动入口等公共基础设施
-├── PROJECTS/                项目目录和项目模板
-├── DASHBOARD/               中央 Dashboard 和 Index 数据
-├── LOGS/                    Append-only 日志
-├── TASKS/                   Task 记录
-├── config/                  系统配置
-└── tests/                   自动化测试
+GET /api/overview
+GET /api/projects
+GET /api/alerts
 ```
 
-## 技术栈
+## 阶段状态
 
-- Python 3.11+：核心运行时
-- Python `unittest`：自动化测试，无第三方依赖
-- SQLite：Filesystem Index 持久化，支持事务和外键
-- Git：代码版本管理
+Phase 0 到 Phase 10 的核心 MVP 能力已建立，但部分能力仍是标准库基础版本。当前限制和后续增强见 [`PROJECT.md`](PROJECT.md).
 
-当前阶段与后续范围见 [`PROJECT.md`](PROJECT.md)。核心原则和 Agent 边界见 [`_SYSTEM/CONSTITUTION.md`](_SYSTEM/CONSTITUTION.md) 与 [`_SYSTEM/AGENT_PROTOCOL.md`](_SYSTEM/AGENT_PROTOCOL.md)。
+## 目录职责
+
+```text
+_SYSTEM/       系统规则与协议
+CORE/index/    文件事实层、Search、Symbol、Relation
+CORE/gateway/  唯一 Agent 访问入口
+CORE/context/  渐进式 Context 组装
+CORE/adapter/  模型无关 Agent Adapter
+CORE/audit/    Append-only 审计
+CORE/maintenance/ 健康检查
+DASHBOARD/     中央 Dashboard API
+PROJECTS/      项目模板和项目目录
+LOGS/          决策与运行日志
+TASKS/         Task 记录
+tests/         自动化测试
+```

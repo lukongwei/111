@@ -1,6 +1,6 @@
 # Filesystem Index
 
-Phase 1 实现不依赖 LLM 的文件发现、元数据记录、稳定文件 ID、目录树、增量更新和 SQLite 持久化。
+Phase 1 的 Filesystem Index 是 MVP 的事实层；其上已接入确定性 Search、Python Symbol 和基础 Relation。所有能力不依赖 LLM。
 
 ## API
 
@@ -30,6 +30,7 @@ with IndexDatabase("DASHBOARD/data/index.sqlite3") as database:
 - 同路径文件只有大小、`mtime_ns`、`ctime_ns` 均未变化时才跳过 Hash 读取；元数据变化时重新计算 SHA-256。
 - Hash 相同且旧路径消失、新路径唯一时，识别为移动并保留 File ID。
 - 重复 Hash 或移动同时改内容无法确定身份时，不猜测；记录 warning，按删除/新增处理。
+- 自然语言 Text Search 会将输入拆成安全的 AND 词项，避免 FTS5 操作符或标点改变查询语义。
 
 ## 扫描范围
 
@@ -39,5 +40,5 @@ with IndexDatabase("DASHBOARD/data/index.sqlite3") as database:
 
 数据库路径由 `config/system.toml` 配置，默认是 `DASHBOARD/data/index.sqlite3`。Schema 版本存放在 `metadata` 表中。文件更新和目录树替换在同一事务中提交；每次扫描另有 `index_runs` 记录，失败状态和错误原因保留用于审计。
 
-当前数据库 API 是本地管理接口，不是 Agent 权限边界。Gateway 尚未实现，Agent Adapter 不得直接调用此 API。
+当前数据库 API 是本地管理接口，不是 Agent 权限边界。Agent 必须通过 `CORE.gateway.ContextGateway` 访问信息，不能直接调用 Index API。
 
