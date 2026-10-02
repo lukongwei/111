@@ -1,0 +1,16 @@
+# AI Workspace Phase 0 配置。
+# 本文件只定义骨架运行所需的稳定入口；权限、预算和索引配置将在后续阶段启用。
+
+[workspace]
+name = "AI Workspace"
+phase = 0
+
+[paths]
+projects = "PROJECTS"
+logs = "LOGS"
+tasks = "TASKS"
+
+[runtime]
+allow_direct_filesystem_access = false
+gateway_required = true
+

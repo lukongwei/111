@@ -1,0 +1,14 @@
+[project]
+name = "ai-workspace"
+version = "0.1.0"
+description = "A local, indexed and governed context infrastructure for multiple AI agents."
+requires-python = ">=3.11"
+dependencies = []
+
+[tool.ai-workspace]
+phase = 0
+configuration = "config/system.toml"
+
+[tool.unittest]
+start-directory = "tests"
+
