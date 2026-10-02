@@ -1,14 +1,15 @@
-# AI Workspace Phase 0 配置。
-# 本文件只定义骨架运行所需的稳定入口；权限、预算和索引配置将在后续阶段启用。
+# AI Workspace Phase 1 配置。
+# Index 数据库存放在 Workspace 中央数据目录；Agent 仍须等待 Gateway 才能访问 Index。
 
 [workspace]
 name = "AI Workspace"
-phase = 0
+phase = 1
 
 [paths]
 projects = "PROJECTS"
 logs = "LOGS"
 tasks = "TASKS"
+index_database = "DASHBOARD/data/index.sqlite3"
 
 [runtime]
 allow_direct_filesystem_access = false

@@ -16,3 +16,7 @@
 
 Phase 0 只建立工程骨架、配置入口、文档结构和测试框架。任何需要扫描文件、建立数据库、解析 AST 或访问 Git 的实现都属于后续阶段。
 
+## 当前状态
+
+Phase 0 已完成。Phase 1 Filesystem Index 已实现项目注册、确定性文件发现、SQLite 元数据、稳定文件身份和增量更新。全文搜索、AST、Gateway 和 Context Engine 仍未实现；Agent 不得直接使用本地 Index API。
+

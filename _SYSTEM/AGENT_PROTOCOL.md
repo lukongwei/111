@@ -2,7 +2,7 @@
 
 ## 当前状态
 
-Phase 0 只定义模块边界，不开放实际的文件读取协议。Agent Adapter 尚未实现。
+Phase 1 提供本地 Index 管理 API，但不开放给 Agent。标准请求协议和 Agent Adapter 尚未实现；Agent 仍不得直接读取文件系统或 SQLite。
 
 ## 未来标准操作
 

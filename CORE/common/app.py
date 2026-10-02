@@ -1,4 +1,4 @@
-"""AI Workspace Phase 0 启动检查入口。"""
+"""AI Workspace Phase 1 启动检查入口。"""
 
 from __future__ import annotations
 
@@ -8,13 +8,14 @@ from CORE.common.config import load_config
 
 
 def main() -> int:
-    """加载配置并输出启动状态；不启动尚未实现的核心服务。"""
+    """加载配置并输出当前模块状态。"""
 
     root = Path(__file__).resolve().parents[2]
     config = load_config(root)
     print(f"{config.name} Phase {config.phase} ready")
     print(f"root={config.root}")
-    print("index=not implemented (Phase 1)")
+    print(f"index_database={config.index_database}")
+    print("filesystem_index=available (local management API)")
     print("gateway=not implemented (Phase 5)")
     return 0
 

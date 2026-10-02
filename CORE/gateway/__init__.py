@@ -1,2 +1,2 @@
-"""Context Gateway 模块边界，Phase 0 暂不开放 Agent 访问。"""
+"""Context Gateway 模块边界，Phase 5 实现 Agent 的唯一访问入口。"""
 
