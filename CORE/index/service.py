@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from hashlib import sha256
 from pathlib import Path
 import sqlite3
 import uuid
@@ -254,7 +255,9 @@ class IndexService:
 
     def history(self, project_id: str, file_id: str) -> list[dict[str, object]]:
         self.get_project(project_id)
-        self.get_file(file_id)
+        file = self.get_file(file_id)
+        if file.project_id != project_id:
+            raise KeyError(f"文件不属于项目 {project_id}")
         rows = self.database.connection.execute(
             "SELECT relative_path, first_seen_at, last_seen_at, is_current "
             "FROM file_paths WHERE file_id = ? ORDER BY first_seen_at", (file_id,)
@@ -282,16 +285,32 @@ class IndexService:
             ).fetchone()[0],
         }
 
-    def read_file_content(self, project_id: str, relative_path: str) -> str:
-        """由受控 Index 层读取项目内相对路径。"""
+    def read_file_content(self, project_id: str, relative_path: str, file_id: str) -> str:
+        """读取仍为 active 且身份、项目和相对路径一致的索引文件。"""
 
         project = self.get_project(project_id)
+        file = self.get_file(file_id)
+        if file.project_id != project_id or file.current_path != relative_path or file.status != "active":
+            raise ValueError("文件身份不属于当前项目或已不再 active")
         relative = Path(relative_path)
         if relative.is_absolute() or ".." in relative.parts:
             raise ValueError("非法项目相对路径")
-        path = (project.root_path / relative).resolve()
+        candidate = project.root_path / relative
+        current = project.root_path
+        for part in relative.parts:
+            current = current / part
+            if current.is_symlink():
+                raise ValueError("拒绝通过符号链接读取文件")
+        path = candidate.resolve(strict=True)
         path.relative_to(project.root_path)
-        return path.read_text(encoding="utf-8", errors="replace")
+        try:
+            with path.open("rb") as handle:
+                content = handle.read()
+        except OSError as error:
+            raise ValueError(f"文件无法安全读取: {error}") from error
+        if len(content) != file.size or sha256(content).hexdigest() != file.content_hash:
+            raise ValueError("文件内容已变化，需要重新索引后才能读取")
+        return content.decode("utf-8", errors="replace")
 
     def _discover(
         self, root: Path

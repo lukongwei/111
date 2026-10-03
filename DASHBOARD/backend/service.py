@@ -25,7 +25,7 @@ class DashboardService:
 
     def projects(self) -> list[dict[str, object]]:
         rows = self.connection.execute(
-            "SELECT p.project_id, p.name, p.root_path, "
+            "SELECT p.project_id, p.name, "
             "(SELECT COUNT(*) FROM files f WHERE f.project_id = p.project_id AND f.status = 'active') AS active_files "
             "FROM projects p ORDER BY p.project_id"
         ).fetchall()

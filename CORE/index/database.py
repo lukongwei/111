@@ -195,9 +195,52 @@ CREATE TABLE IF NOT EXISTS change_log (
     decision_id INTEGER,
     FOREIGN KEY(decision_id) REFERENCES decision_log(decision_id)
 );
+
+CREATE TABLE IF NOT EXISTS gateway_usage (
+    session_id TEXT NOT NULL,
+    project_id TEXT NOT NULL REFERENCES projects(project_id),
+    request_count INTEGER NOT NULL DEFAULT 0,
+    read_count INTEGER NOT NULL DEFAULT 0,
+    token_count INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY(session_id, project_id)
+);
+
+CREATE TABLE IF NOT EXISTS gateway_sessions (
+    session_id TEXT PRIMARY KEY,
+    max_total_tokens INTEGER NOT NULL,
+    max_files INTEGER NOT NULL,
+    max_read_operations INTEGER NOT NULL,
+    max_single_file_tokens INTEGER NOT NULL,
+    max_request_count INTEGER NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS gateway_file_usage (
+    session_id TEXT NOT NULL,
+    project_id TEXT NOT NULL REFERENCES projects(project_id),
+    file_id TEXT NOT NULL REFERENCES files(file_id),
+    PRIMARY KEY(session_id, project_id, file_id)
+);
+
+CREATE TRIGGER IF NOT EXISTS operation_log_no_update
+BEFORE UPDATE ON operation_log BEGIN SELECT RAISE(ABORT, 'append-only audit'); END;
+CREATE TRIGGER IF NOT EXISTS operation_log_no_delete
+BEFORE DELETE ON operation_log BEGIN SELECT RAISE(ABORT, 'append-only audit'); END;
+CREATE TRIGGER IF NOT EXISTS decision_log_no_update
+BEFORE UPDATE ON decision_log BEGIN SELECT RAISE(ABORT, 'append-only audit'); END;
+CREATE TRIGGER IF NOT EXISTS decision_log_no_delete
+BEFORE DELETE ON decision_log BEGIN SELECT RAISE(ABORT, 'append-only audit'); END;
+CREATE TRIGGER IF NOT EXISTS change_log_no_update
+BEFORE UPDATE ON change_log BEGIN SELECT RAISE(ABORT, 'append-only audit'); END;
+CREATE TRIGGER IF NOT EXISTS change_log_no_delete
+BEFORE DELETE ON change_log BEGIN SELECT RAISE(ABORT, 'append-only audit'); END;
+CREATE TRIGGER IF NOT EXISTS token_audit_no_update
+BEFORE UPDATE ON token_audit BEGIN SELECT RAISE(ABORT, 'append-only audit'); END;
+CREATE TRIGGER IF NOT EXISTS token_audit_no_delete
+BEFORE DELETE ON token_audit BEGIN SELECT RAISE(ABORT, 'append-only audit'); END;
 """
 
-SCHEMA_VERSION = "2"
+SCHEMA_VERSION = "3"
 
 
 class IndexDatabase:
@@ -214,6 +257,11 @@ class IndexDatabase:
         existing_version = self.connection.execute(
             "SELECT value FROM metadata WHERE key = 'schema_version'"
         ).fetchone()
+        if existing_version is not None and existing_version["value"] == "2":
+            self.connection.execute(
+                "UPDATE metadata SET value = ? WHERE key = 'schema_version'", (SCHEMA_VERSION,)
+            )
+            existing_version = None
         if existing_version is not None and existing_version["value"] != SCHEMA_VERSION:
             self.connection.close()
             raise RuntimeError(
@@ -225,6 +273,20 @@ class IndexDatabase:
             (SCHEMA_VERSION,),
         )
         self.connection.commit()
+        self.connection.set_authorizer(self._authorize_audit_tables)
+
+    @staticmethod
+    def _authorize_audit_tables(
+        action: int, arg1: str | None, arg2: str | None,
+        database: str | None, trigger: str | None,
+    ) -> int:
+        """在本连接上禁止审计表 UPDATE/DELETE；INSERT 仍由审计写入器使用。"""
+
+        if action in {sqlite3.SQLITE_UPDATE, sqlite3.SQLITE_DELETE} and arg1 in {
+            "operation_log", "decision_log", "change_log", "token_audit",
+        }:
+            return sqlite3.SQLITE_DENY
+        return sqlite3.SQLITE_OK
 
     @contextmanager
     def transaction(self) -> Iterator[sqlite3.Connection]:

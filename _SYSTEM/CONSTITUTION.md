@@ -18,5 +18,7 @@ Phase 0 只建立工程骨架、配置入口、文档结构和测试框架。任
 
 ## 当前状态
 
-Phase 0 已完成。Phase 1 Filesystem Index 已实现项目注册、确定性文件发现、SQLite 元数据、稳定文件身份和增量更新。全文搜索、AST、Gateway 和 Context Engine 仍未实现；Agent 不得直接使用本地 Index API。
+Phase 0 到 Phase 10 的核心 MVP 已完成：Filesystem Index、Search、Python Symbol / Relation、Gateway、Context Engine、Adapter、Dashboard、Audit 和 Maintenance。多语言静态分析、完整 Git 历史、生产级 Dashboard 和 OS 级 Agent 沙箱仍是后续增强。
+
+应用层 Gateway 只能控制遵守协议的调用者。若 Agent 被视为不可信代码，必须通过独立进程、独立 OS 用户、文件 ACL、容器或其他沙箱建立真正的能力边界；同一 Python 进程内的模块导出不能提供 OS 级安全保证。
 

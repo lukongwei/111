@@ -51,6 +51,8 @@ def make_handler(workspace_root: Path, database_path: Path | None = None):
 
 
 def serve(workspace_root: Path, host: str = "127.0.0.1", port: int = 8765) -> None:
+    if host not in {"127.0.0.1", "localhost", "::1"}:
+        raise ValueError("Dashboard 默认只允许回环地址；远程访问需要单独的认证反向代理")
     server = ThreadingHTTPServer((host, port), make_handler(workspace_root))
     print(f"Dashboard listening on http://{host}:{port}")
     try:
