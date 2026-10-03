@@ -42,6 +42,8 @@ GET /api/alerts
 
 Phase 0 到 Phase 10 的核心 MVP 能力已建立，但部分能力仍是标准库基础版本。当前限制和后续增强见 [`PROJECT.md`](PROJECT.md).
 
+需要人工或其他 GPT 复查时，直接使用 [`REVIEW_PACKAGE.md`](REVIEW_PACKAGE.md)。其中包含架构图、主要 API、验收结果、已知风险和可复制的审查提示词。
+
 ## 目录职责
 
 ```text
