@@ -38,7 +38,7 @@ with IndexDatabase("DASHBOARD/data/index.sqlite3") as database:
 
 ## SQLite
 
-数据库路径由 `config/system.toml` 配置，默认是 `DASHBOARD/data/index.sqlite3`。当前 Schema 版本为 3；版本 2 只做新表补齐和版本提升，尚无通用 migration 工具。Schema 版本存放在 `metadata` 表中。文件更新和目录树替换在同一事务中提交；每次扫描另有 `index_runs` 记录，失败状态和错误原因保留用于审计。
+数据库路径由 `config/system.toml` 配置，默认是 `DASHBOARD/data/index.sqlite3`。当前 Schema 版本为 4；版本 2 和 3 只做新表补齐和版本提升，尚无通用 migration 工具。Schema 版本存放在 `metadata` 表中。文件更新和目录树替换在同一事务中提交；每次扫描另有 `index_runs` 记录，失败状态和错误原因保留用于审计。版本 4 增加 Semantic Layer 表。
 
 当前数据库 API 是本地管理接口，不是 Agent 权限边界。Agent 必须通过 `CORE.gateway.ContextGateway` 访问信息，不能直接调用 Index API。
 

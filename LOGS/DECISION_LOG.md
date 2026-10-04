@@ -37,3 +37,10 @@
 - **替代方案**：继续逐 Phase 停下来等待确认，或引入 Web/ORM/向量数据库等第三方基础设施。
 - **不确定性**：当前 Symbol、Relation、Dashboard 和维护规则是可解释 MVP，不替代多语言静态分析、完整 Git 历史和生产级前端。
 
+## 2026-10-03 - Semantic Layer v0.1 作为语义事实层
+
+- **决定**：在现有 Index SQLite 中增加 Problem、Goal、Module、Implementation、Semantic Relation、Annotation、History 和 Drift 表，并提供 `CORE.semantic.SemanticService`。
+- **原因**：需要把数学问题、工程目标、模块和实现事实连接成可追溯图，同时区分 Human、AI、System 来源；语义模型明确要求这些约束先于优化和 Review 自动化。
+- **替代方案**：把语义直接写入文件注释、复用普通 Index Relation，或立即实现 Goal 优化与自动冲突消解。
+- **不确定性**：跨项目语义查询、Human 确认工作流、完整 Drift 检测、Review 和签名级来源证明留给后续阶段。
+

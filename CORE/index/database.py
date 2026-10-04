@@ -222,6 +222,136 @@ CREATE TABLE IF NOT EXISTS gateway_file_usage (
     PRIMARY KEY(session_id, project_id, file_id)
 );
 
+CREATE TABLE IF NOT EXISTS semantic_problems (
+    problem_id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    definition TEXT NOT NULL,
+    formalization TEXT NOT NULL,
+    constraints TEXT NOT NULL,
+    provenance TEXT NOT NULL CHECK (provenance = 'Human'),
+    state TEXT NOT NULL CHECK (state IN ('proposed', 'active', 'modified', 'deprecated')),
+    created_at TEXT NOT NULL,
+    created_by TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS semantic_goals (
+    goal_id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    description TEXT NOT NULL,
+    provenance TEXT NOT NULL CHECK (provenance IN ('Human', 'AI', 'System')),
+    state TEXT NOT NULL CHECK (state IN ('proposed', 'active', 'modified', 'deprecated')),
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    created_by TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS semantic_modules (
+    module_id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    function TEXT NOT NULL,
+    primary_goal_id TEXT NOT NULL REFERENCES semantic_goals(goal_id),
+    provenance TEXT NOT NULL CHECK (provenance IN ('Human', 'AI', 'System')),
+    state TEXT NOT NULL CHECK (state IN ('proposed', 'active', 'modified', 'deprecated')),
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    created_by TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS semantic_implementations (
+    implementation_id TEXT PRIMARY KEY,
+    reference_type TEXT NOT NULL CHECK (reference_type IN ('file', 'symbol', 'runtime', 'other')),
+    reference_id TEXT NOT NULL,
+    project_id TEXT REFERENCES projects(project_id),
+    observed_meaning TEXT NOT NULL,
+    provenance TEXT NOT NULL CHECK (provenance = 'System'),
+    state TEXT NOT NULL CHECK (state IN ('proposed', 'active', 'modified', 'deprecated')),
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    created_by TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS semantic_relations (
+    relation_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    source_type TEXT NOT NULL CHECK (source_type IN ('problem', 'goal', 'module', 'implementation')),
+    source_id TEXT NOT NULL,
+    relation_type TEXT NOT NULL,
+    target_type TEXT NOT NULL CHECK (target_type IN ('problem', 'goal', 'module', 'implementation')),
+    target_id TEXT NOT NULL,
+    rationale TEXT NOT NULL CHECK (length(trim(rationale)) > 0),
+    reason_trigger TEXT NOT NULL CHECK (length(trim(reason_trigger)) > 0),
+    reason_gap TEXT NOT NULL CHECK (length(trim(reason_gap)) > 0),
+    reason_response TEXT NOT NULL CHECK (length(trim(reason_response)) > 0),
+    provenance TEXT NOT NULL CHECK (provenance IN ('Human', 'AI', 'System')),
+    state TEXT NOT NULL CHECK (state IN ('proposed', 'active', 'modified', 'deprecated')),
+    supersedes_relation_id INTEGER REFERENCES semantic_relations(relation_id),
+    created_at TEXT NOT NULL,
+    created_by TEXT NOT NULL,
+    UNIQUE(source_type, source_id, relation_type, target_type, target_id, state)
+);
+
+CREATE INDEX IF NOT EXISTS idx_semantic_relations_source
+    ON semantic_relations(source_type, source_id, relation_type);
+CREATE INDEX IF NOT EXISTS idx_semantic_relations_target
+    ON semantic_relations(target_type, target_id, relation_type);
+
+CREATE TABLE IF NOT EXISTS semantic_annotations (
+    annotation_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    object_type TEXT NOT NULL CHECK (object_type IN ('problem', 'goal', 'module', 'implementation')),
+    object_id TEXT NOT NULL,
+    meaning TEXT NOT NULL,
+    engineering_problem TEXT NOT NULL DEFAULT '',
+    engineering_goal TEXT NOT NULL DEFAULT '',
+    mathematical_problem TEXT NOT NULL DEFAULT '',
+    origin_type TEXT NOT NULL,
+    origin_id TEXT,
+    reason_trigger TEXT NOT NULL DEFAULT '',
+    reason_gap TEXT NOT NULL DEFAULT '',
+    reason_response TEXT NOT NULL DEFAULT '',
+    provenance TEXT NOT NULL CHECK (provenance IN ('Human', 'AI', 'System')),
+    state TEXT NOT NULL CHECK (state IN ('proposed', 'active', 'modified', 'deprecated')),
+    created_at TEXT NOT NULL,
+    created_by TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_semantic_annotations_object
+    ON semantic_annotations(object_type, object_id, state);
+
+CREATE TABLE IF NOT EXISTS semantic_history (
+    history_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    object_type TEXT NOT NULL,
+    object_id TEXT NOT NULL,
+    version INTEGER NOT NULL,
+    event_type TEXT NOT NULL,
+    snapshot TEXT NOT NULL,
+    provenance TEXT NOT NULL CHECK (provenance IN ('Human', 'AI', 'System')),
+    actor TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    UNIQUE(object_type, object_id, version)
+);
+
+CREATE TABLE IF NOT EXISTS semantic_drift (
+    drift_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    implementation_id TEXT NOT NULL REFERENCES semantic_implementations(implementation_id),
+    declared_meaning TEXT NOT NULL,
+    observed_meaning TEXT NOT NULL,
+    evidence TEXT NOT NULL,
+    state TEXT NOT NULL CHECK (state IN ('review_required', 'accepted', 'rejected')),
+    created_at TEXT NOT NULL
+);
+
+CREATE TRIGGER IF NOT EXISTS semantic_problem_no_update
+BEFORE UPDATE ON semantic_problems BEGIN SELECT RAISE(ABORT, 'mathematical problem requires human confirmation'); END;
+CREATE TRIGGER IF NOT EXISTS semantic_problem_no_delete
+BEFORE DELETE ON semantic_problems BEGIN SELECT RAISE(ABORT, 'mathematical problem history is immutable'); END;
+CREATE TRIGGER IF NOT EXISTS semantic_history_no_update
+BEFORE UPDATE ON semantic_history BEGIN SELECT RAISE(ABORT, 'semantic history is append-only'); END;
+CREATE TRIGGER IF NOT EXISTS semantic_history_no_delete
+BEFORE DELETE ON semantic_history BEGIN SELECT RAISE(ABORT, 'semantic history is append-only'); END;
+CREATE TRIGGER IF NOT EXISTS semantic_relations_no_update
+BEFORE UPDATE ON semantic_relations BEGIN SELECT RAISE(ABORT, 'semantic relations are append-only'); END;
+CREATE TRIGGER IF NOT EXISTS semantic_relations_no_delete
+BEFORE DELETE ON semantic_relations BEGIN SELECT RAISE(ABORT, 'semantic relations are append-only'); END;
+
 CREATE TRIGGER IF NOT EXISTS operation_log_no_update
 BEFORE UPDATE ON operation_log BEGIN SELECT RAISE(ABORT, 'append-only audit'); END;
 CREATE TRIGGER IF NOT EXISTS operation_log_no_delete
@@ -240,7 +370,7 @@ CREATE TRIGGER IF NOT EXISTS token_audit_no_delete
 BEFORE DELETE ON token_audit BEGIN SELECT RAISE(ABORT, 'append-only audit'); END;
 """
 
-SCHEMA_VERSION = "3"
+SCHEMA_VERSION = "4"
 
 
 class IndexDatabase:
@@ -257,7 +387,7 @@ class IndexDatabase:
         existing_version = self.connection.execute(
             "SELECT value FROM metadata WHERE key = 'schema_version'"
         ).fetchone()
-        if existing_version is not None and existing_version["value"] == "2":
+        if existing_version is not None and existing_version["value"] in {"2", "3"}:
             self.connection.execute(
                 "UPDATE metadata SET value = ? WHERE key = 'schema_version'", (SCHEMA_VERSION,)
             )

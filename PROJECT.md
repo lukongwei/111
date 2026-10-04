@@ -18,6 +18,7 @@
 - Dashboard：中央 JSON HTTP API 和聚合读模型。
 - Audit：Operation、Decision、Change、Token Audit append-only 写入器。
 - Maintenance：项目根目录、失败扫描、孤立 Symbol 等确定性健康检查。
+- Semantic Layer：Problem、Goal、Module、Implementation、带理由的关系、Provenance、Annotation、语义历史和 Drift Review 记录。
 
 ## 当前明确限制
 
@@ -25,7 +26,9 @@
 - 调用关系是确定性启发式的基础版本，不等价于完整静态类型分析。
 - Dashboard 当前是标准库 JSON HTTP API，没有完整前端 UI。
 - Git History、复杂 Git rename、文档过期检测、Token 异常检测和多进程写入协调仍属于增强项。
-- Index schema 已升级到版本 3；版本 2 数据库只做结构补齐和版本提升，不提供通用历史迁移工具；其他旧版本需要重新建立。
+- Index schema 已升级到版本 4；版本 2/3 数据库只做结构补齐和版本提升，不提供通用历史迁移工具；其他旧版本需要重新建立。
+- Semantic Layer 当前为 v0.1 持久化事实层；Schema 版本 4 对版本 2/3 做表补齐和版本提升，不提供通用历史迁移工具。Problem 创建入口是受信任管理 API，不代表已经具备 Human 身份认证或确认工作流。
+- Semantic Layer 不自动裁决 Goal 冲突、模块必要性、最优性、合并拆分或 Mathematical Problem 修改。
 
 ## 验收标准
 
@@ -35,6 +38,7 @@
 - 超过预算、跨项目、敏感路径和非法请求必须被拒绝并记录审计。
 - 工作区保持 Git 可追踪且文档与实现一致。
 - 应用层 Gateway 边界不等同于 OS 沙箱；若 Agent 不可信，必须使用独立进程、独立 OS 用户或沙箱隔离。
+- Mathematical Problem 的语义定义权属于 Human；AI 只能提出修改建议，不能静默修改。
 
 ## 复查入口
 

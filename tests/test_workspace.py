@@ -25,6 +25,7 @@ class WorkspaceTests(unittest.TestCase):
             "CORE/index",
             "CORE/context",
             "CORE/gateway",
+            "CORE/semantic",
             "CORE/protocol",
             "CORE/common",
             "PROJECTS/_template/.context",

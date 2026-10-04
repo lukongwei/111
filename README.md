@@ -15,9 +15,13 @@ python -m CORE.index.commands --help
 python -m DASHBOARD.backend --help
 ```
 
+GitHub Actions 会在 Python 3.11、3.12 和 3.13 上运行同一组测试、编译检查和空白检查。
+本地提交前的维护清单见 [`MAINTENANCE.md`](MAINTENANCE.md)。
+
 ## 本地工作流
 
 SQLite 默认位于 `DASHBOARD/data/index.sqlite3`。项目必须显式注册；扫描器不跟随符号链接，并默认排除 `.git`、虚拟环境、缓存、依赖和构建目录。
+SQLite 数据库及其 WAL、SHM、journal 文件属于本地运行状态，已由 `.gitignore` 排除，不作为项目源码发布。
 
 ```powershell
 python -m CORE.index.commands register <项目名> <项目绝对路径>
@@ -43,6 +47,8 @@ GET /api/alerts
 Phase 0 到 Phase 10 的核心 MVP 能力已建立，但部分能力仍是标准库基础版本。当前限制和后续增强见 [`PROJECT.md`](PROJECT.md).
 
 需要人工或其他 GPT 复查时，直接使用 [`REVIEW_PACKAGE.md`](REVIEW_PACKAGE.md)。其中包含架构图、主要 API、验收结果、已知风险和可复制的审查提示词。
+
+发布前请审阅 `git diff`，确认没有 `.env`、凭据、Token、私钥、用户数据或未经脱敏的实验日志。Gateway 是应用层访问边界，不是 OS 沙箱；不可信 Agent 仍必须运行在独立进程、独立 OS 用户或受控沙箱中。
 
 ## 目录职责
 

@@ -52,6 +52,7 @@ SQLite + Project Filesystem
 - Dashboard JSON HTTP API
 - Operation / Decision / Change / Token Audit
 - Maintenance 健康检查
+- Semantic Layer v0.1：Problem、Goal、Module、Implementation、可追溯关系、Provenance、Annotation、History 和 Drift Review 记录
 
 本轮安全修复后的结论：
 
@@ -65,6 +66,7 @@ SQLite + Project Filesystem
 - Relation 是基础确定性分析，不是完整静态类型分析。
 - Dashboard 目前主要是 JSON API，没有完整前端 UI。
 - Git History、复杂 Git rename、文档冲突检查、Token 异常检测和多进程并发写入仍未完成。
+- Semantic Layer 的自动 Review、Goal 冲突消解、必要性/最优性判断、Human 身份认证与 Problem 修改确认工作流、完整 Drift 检测仍未完成。
 
 ## 1. 当前治理状态
 
@@ -396,7 +398,7 @@ git diff --check
 本轮安全修复后的验证结果：
 
 ```text
-30 tests passed
+35 tests passed
 1 symbolic-link test skipped
 ```
 
@@ -441,7 +443,7 @@ git diff --check
 
 1. 不可信 Agent 如果与 Gateway/Index 同进程运行，仍可通过 Python 能力直接访问文件或 SQLite；这是当前最高优先级的未解决风险，需要 OS/进程沙箱。
 2. 敏感路径判断是保守规则集合匹配；现有测试覆盖若干常见变体，仍应做系统化 fuzzing，并关注平台路径语义和新凭据命名。
-3. SQLite schema 当前为版本 3；版本 2 只做结构补齐和版本提升，尚无通用 migration 工具。
+3. SQLite schema 当前为版本 4；版本 2/3 只做结构补齐和版本提升，尚无通用 migration 工具。
 4. FTS5 依赖当前 Python SQLite 编译选项，跨环境部署需要检查 FTS5 可用性。
 5. Relation 的 `calls` 是基础启发式分析，不能当作完整调用图。
 6. `called_by` / `tested_by` 等反向关系需要确认是查询时反向推导，还是数据库中显式维护。
@@ -451,6 +453,7 @@ git diff --check
 10. Index 读取原始文件使用 UTF-8 replacement，二进制和超大文件策略需要明确。
 11. 应用层 Gateway 修复不能替代不可信 Agent 的 OS 级隔离；需要独立进程、独立 OS 用户或沙箱才能形成真正能力边界。
 12. SQLite 审计表触发器与连接 authorizer 主要防止应用内误操作/常规 SQL 修改，不是对数据库文件所有者的密码学防篡改日志。
+13. Semantic Layer 当前是可追溯语义事实层，不是自动 Review 引擎；需审查 I1-I7 是否由数据库约束和契约测试真正覆盖。
 
 ### P2：后续质量提升
 
@@ -461,6 +464,7 @@ git diff --check
 5. 增加 Dashboard 前端和可视化关系图。
 6. 增加并发扫描、锁、崩溃恢复和长期运行测试。
 7. 接入真实 Agent Provider 时，确保 Provider 只收到 Context Package，不收到项目根路径或 SQLite 路径。
+8. 增加 Semantic Layer 的跨项目图查询、Human 确认提案流、语义关系签名和更强的 Drift 检测。
 
 ## 8. 复查输出格式
 
@@ -510,11 +514,11 @@ git diff --check
 
 项目复查基线：
 - 基础 Git commit: 1225cc1
-- 本次被审查对象: commit aead420（应用层安全修复）
+- 本次被审查对象: commit faf859e（应用层安全修复）及其后的 Semantic Layer v0.1 变更
 - Python: 3.11+
 - Runtime dependencies: Python standard library
 - Test command: python -m unittest discover -s tests -v
-- Expected after this change set: 30 passed, 1 symbolic-link test skipped on restricted Windows environments
+- Expected after this change set: 35 passed, 1 symbolic-link test skipped on restricted Windows environments
 
 请把以上修复状态视为待独立验证的实现主张，不要仅凭本说明或测试通过认定安全。尤其要判断审计保护是否被夸大，以及预算 session 和同进程威胁模型是否满足部署目标。
 
