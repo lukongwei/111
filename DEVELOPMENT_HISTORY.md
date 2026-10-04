@@ -103,4 +103,3 @@ Relation 包括 imports、calls、tests 和 contains 的基础版本；它们是
 - [`SECURITY_BOUNDARY.md`](SECURITY_BOUNDARY.md)：Gateway 与 OS / 进程隔离的边界。
 - [`SEMANTIC_LAYER.md`](SEMANTIC_LAYER.md)：Semantic Layer v0.1 的数据与治理规则。
 - [`LOGS/DECISION_LOG.md`](LOGS/DECISION_LOG.md)：按 append-only 维护的设计决策记录。
-
