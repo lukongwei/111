@@ -44,7 +44,7 @@
 
 完整的人工/GPT 复查资料见 [`REVIEW_PACKAGE.md`](REVIEW_PACKAGE.md)，包括架构、数据流、模块职责、主要 API、验收结果、风险和复查提示词。
 
-项目问题定义、设计思路和根据 Git / 项目记录重建的演进时间线见 [`DEVELOPMENT_HISTORY.md`](DEVELOPMENT_HISTORY.md)。该文档不包含原始 ChatGPT 导出或未经筛选的私人对话。
+项目问题定义、设计思路和根据 Git / 项目记录重建的演进时间线见 [`DEVELOPMENT_HISTORY.md`](DEVELOPMENT_HISTORY.md)。
 
 ## 运行方式
 
