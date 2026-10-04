@@ -211,6 +211,7 @@ tests/            自动化测试
 
 ## 文档入口
 
+- [`DEVELOPMENT_HISTORY.md`](DEVELOPMENT_HISTORY.md)：项目问题定义、设计原则与可验证的开发时间线。
 - [`PROJECT.md`](PROJECT.md)：当前目标、状态、限制和验收标准。
 - [`REVIEW_PACKAGE.md`](REVIEW_PACKAGE.md)：架构、安全和代码复查资料。
 - [`SECURITY_BOUNDARY.md`](SECURITY_BOUNDARY.md)：Gateway 与 OS / 进程沙箱的边界。
